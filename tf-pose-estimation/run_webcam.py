@@ -45,7 +45,8 @@ devicename = 0
 inputSwitch = 1 
 
 
-# Script to determine the number of humans detected using the size of human object
+# This function determines the number of humans detected using the size of human object
+# and returns and object containing the body part
 '''
 hnum: 0 based human index 
 pos:  keypoint
@@ -61,22 +62,20 @@ def get_keypoint(humans, hnum, pos):
     part = humans[hnum].body_parts[pos]
     return part
 
-'''
-return the keypoint position in (x, y) coordinates in the image
-'''
+# This function returns the keypoint position in (x, y) coordinates in the image
 def get_point_from_part(image, part):
     image_h, image_w = image.shape[:2]
     return (int(part.x*image_w + 0.5), int(part.y * image_h + 0.5))
 
-# count number of humans detected in an image
+# This function counts and return the number of humans detected in an image
 def human_cnt(humans):
     if humans is None:
         return 0
     return len(humans)
 
-# Append the right data points to sequence
-
-    # ensure that the sequence has 32 frames and contain valid data
+# This function accumulates 32 frames of key point data for a selected person and 
+# assigns them to the sliding window array and parse it into the LSTM Activity recognition model
+# and return an activity prediction
 def sequence_32(person, personData, sequence_arr,row):
     label = ''
     # Assign the appropriate Person Data to Inference Sequence Array 
@@ -94,6 +93,7 @@ def sequence_32(person, personData, sequence_arr,row):
 
     return sequence_arr,label
 
+# This function extracts the key point data for each body part and returns the data
 def appendRow(humans, hnum,row):
     for i in range(18):
          # assumption that j= 0 is the first index
@@ -105,7 +105,7 @@ def appendRow(humans, hnum,row):
             row.append(0)
             continue
         pos =  get_point_from_part(image, part)
-        #print('\t No: %2d    Name [ %s ] \t X: %3d \t Y: %3d \t Score: %f'%( part.part_idx, part.get_part_name(),  pos[0] , pos[1] , part.score))
+        print('\t No: %2d    Name [ %s ] \t X: %3d \t Y: %3d \t Score: %f'%( part.part_idx, part.get_part_name(),  pos[0] , pos[1] , part.score))
         cv2.putText(image,str(part.part_idx),  (pos[0] + 10, pos[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
         
         if (pos[0] > 0 and  pos[1] > 0):
@@ -114,6 +114,7 @@ def appendRow(humans, hnum,row):
     
     return row
 
+# This function appends the key point data of each body part into a string and assigns them to selected person 
 def assignDataToPerson(person, personData, row):
     personData[person]["sequence"].append(row)
     return personData
@@ -121,6 +122,7 @@ def assignDataToPerson(person, personData, row):
 def printPersonData(personData):
     print(personData)
 
+# This function prints the prediction for each person on the video output
 def printPersonAction(person, label):
     y = 150
     if person == 'B':
@@ -243,20 +245,20 @@ if __name__ == '__main__':
             human_num = human_cnt(humans)
             print('\nFrame: %5d \t Number of humans detected: %2d' % (frame_number+1, human_num))
             row = []
-            # print keypoint data (max 18 points) for each human detected - andy
+            # print keypoint data (max 18 points) for each human detected
             for j in range(human_num):
                 if (humans[j].score > 0.8): 
-                    row = []  # clear row values to prevent concatination of data A & B
+                    row = []  # clear row values to prevent concatination of data for Person A to E
                     print('\nPerson: ',person[j])
-                    ### Control of data sequencing to split person A & B must be done here
-                    #print and assign the keypoint to row_array
+                    ### Control of data sequencing to split person A to E is done here
+                    # Print and assign the keypoint to row_array
                     row = appendRow(humans,j,row)
                     # Store row data by person
                     personData = assignDataToPerson(person[j],personData,row)
 
-                    # form the 32 frame sequence array, appending 0 to missing data
+                    # Form the 32 frame sequence array, appending 0 to missing data
                     sequence_arr,label = sequence_32(person[j],personData,sequence_arr,row)
-                    #print("\nPerson: %s \nSequence Array:\n %s \n" % (person[j],sequence_arr))
+                    # print("\nPerson: %s \nSequence Array:\n %s \n" % (person[j],sequence_arr))
 
                     # Print Person Label on image above nose (keypoint 0)
                     xpoint = row[0] 
@@ -272,20 +274,12 @@ if __name__ == '__main__':
             try:
                 if label == '':
                     label = "No Activity Detected"
-                ## It seems that 'r' is a file path that will be loaded into the y_path
-                #r = requests.post(url, data=json.dumps({
-                 #   "featureName":featureName,
-                  #  "label":label,
-                  #  "camId": camid,
-                  #  "deviceName": devicename}),
-                  #  headers=headers)
             except:
-                #print("Check the connection with the node server")
                 print("label variable is not defined")
 
             print("Human Activity Prediction: ",label) 
             cv2.putText(image,"No. of people: %d" % (human_num),(10, 100),  cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 2)
-            #cv2.putText(image,label,(50, 50),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 255, 0), 2)
+            cv2.putText(image,label,(50, 50),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 255, 0), 2)
 
             #logger.debug('show+')
             cv2.putText(image,
@@ -293,7 +287,7 @@ if __name__ == '__main__':
                         (10, 50),  cv2.FONT_HERSHEY_SIMPLEX, 1,
                         (0, 255, 0), 2)
             
-            # video write a file
+            # write the image into the video output file
             out.write(image)
             
             # Resize image size in the event that it is too big and stretches out of screen
